@@ -5,7 +5,7 @@ SAMP.py is a GTA SA:MP RCON and query client for Python.
 # Installation
 
 ```bash
-pip install samp-py
+pip install samp-python
 ```
 
 # Usage
