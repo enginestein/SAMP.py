@@ -1,5 +1,7 @@
 # SAMP.py
 
+[![Downloads](https://static.pepy.tech/badge/samp-python)](https://pepy.tech/project/samp-python)
+
 SAMP.py is a GTA SA:MP RCON and query client for Python.
 
 # Installation
