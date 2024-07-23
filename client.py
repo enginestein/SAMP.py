@@ -48,7 +48,7 @@ class SampClient(object):
             response = self.socket.recv(buffersize)
             return response[11:] if strip_header else response
         except socket.timeout as e:
-            pass
+            raise TimeoutError("Connection timeout") from e
         except socket.error as e:
             raise ConnectionError(e)
 
