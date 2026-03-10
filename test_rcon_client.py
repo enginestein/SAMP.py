@@ -1,13 +1,13 @@
-from unittest import TestCase
+import asyncio
+from unittest import IsolatedAsyncioTestCase
 
-from samp_py.models import ServerVar, RConPlayer
+from src.models import ServerVar, RConPlayer
+from src.client import SampClient
+from src.exceptions import InvalidRconPassword, RconError, SampError
+from mock import MockSocket
 
-from samp_py.client import SampClient
-from samp_py.exceptions import InvalidRconPassword, RconError, SampError
-from samp_py.tests.mock import MockSocket
 
-
-class RconClientTestCase(TestCase):
+class RconClientTestCase(IsolatedAsyncioTestCase):
     VAR_LIST = [
         ServerVar(name='ackslimit', value=3000, read_only=False),
         ServerVar(name='announce', value=False, read_only=False), ServerVar(name='bind', value='', read_only=True),
@@ -69,82 +69,82 @@ class RconClientTestCase(TestCase):
         ServerVar(name='worldtime', value='12:00', read_only=False),
     ]
 
-    def setUp(self):
-        super(RconClientTestCase, self).setUp()
+    async def asyncSetUp(self):
         self.client = SampClient(address='localhost', rcon_password='password')
-        self.client.socket_cls = MockSocket
-        self.client.connect()
+        self.client.protocol_cls = MockSocket
+        await self.client.connect()
 
-    def tearDown(self):
-        super(RconClientTestCase, self).tearDown()
+    async def asyncTearDown(self):
         self.client.disconnect()
 
-    def test_no_password(self):
+    async def test_no_password(self):
         self.client.rcon_password = None
-        self.assertRaises(RconError, self.client.rcon_players)
+        with self.assertRaises(RconError):
+            await self.client.rcon_players()
 
-    def test_incorrect_password(self):
+    async def test_incorrect_password(self):
         self.client.rcon_password = 'invalidpassword'
-        self.assertRaises(InvalidRconPassword, self.client.rcon_players)
+        with self.assertRaises(InvalidRconPassword):
+            await self.client.rcon_players()
 
-    def test_rcon_password_bytes(self):
+    async def test_rcon_password_bytes(self):
         self.client.rcon_password = 'password'
-        self.assertEqual(self.client.rcon_password_bytes, b'\x08\x00password', )
+        self.assertEqual(self.client.rcon_password_bytes, b'\x08\x00password')
 
-    def test_rcon_cmdlist(self):
-        response = self.client.rcon_cmdlist()
+    async def test_rcon_cmdlist(self):
+        response = await self.client.rcon_cmdlist()
         self.assertEqual(response, [
             'echo', 'exec', 'cmdlist', 'varlist', 'exit', 'kick', 'ban', 'gmx', 'changemode', 'say',
             'reloadbans', 'reloadlog', 'players', 'banip', 'unbanip', 'gravity', 'weather', 'loadfs',
             'unloadfs', 'reloadfs',
         ])
 
-    def test_rcon_varlist(self):
-        varlist = self.client.rcon_varlist()
+    async def test_rcon_varlist(self):
+        varlist = await self.client.rcon_varlist()
         self.assertEqual(varlist, self.VAR_LIST)
 
-    def test_rcon_varlist_dict(self):
-        vardict = self.client.rcon_varlist_dict()
+    async def test_rcon_varlist_dict(self):
+        vardict = await self.client.rcon_varlist_dict()
         expected_dict = {var.name: var.value for var in self.VAR_LIST}
         self.assertEqual(vardict, expected_dict)
 
-    def test_rcon_exit(self):
-        response = self.client.rcon_exit()
+    async def test_rcon_exit(self):
+        response = await self.client.rcon_exit()
         self.assertIsNone(response)
 
-    def test_rcon_echo(self):
-        response = self.client.rcon_echo('Hello')
+    async def test_rcon_echo(self):
+        response = await self.client.rcon_echo('Hello')
         self.assertEqual(response, 'Hello')
 
-    def test_rcon_set_hostname(self):
-        response = self.client.rcon_set_hostname('test hostname')
+    async def test_rcon_set_hostname(self):
+        response = await self.client.rcon_set_hostname('test hostname')
         self.assertIsNone(response)
-        self.client.rcon_set_hostname('Convoy Trucking')
+        await self.client.rcon_set_hostname('Convoy Trucking')
 
-    def test_rcon_get_hostname(self):
-        hostname = self.client.rcon_get_hostname()
+    async def test_rcon_get_hostname(self):
+        hostname = await self.client.rcon_get_hostname()
         self.assertEqual(hostname, ServerVar('hostname', 'Convoy Trucking', False))
 
-    def test_rcon_set_gamemodetext(self):
-        response = self.client.rcon_set_gamemodetext('New Gamemode')
+    async def test_rcon_set_gamemodetext(self):
+        response = await self.client.rcon_set_gamemodetext('New Gamemode')
         self.assertIsNone(response)
-        response = self.client.rcon_set_gamemodetext('Convoy Trucking DEV')
+        await self.client.rcon_set_gamemodetext('Convoy Trucking DEV')
 
-    def test_rcon_get_gamemodetext(self):
-        var = self.client.rcon_get_gamemodetext()
+    async def test_rcon_get_gamemodetext(self):
+        var = await self.client.rcon_get_gamemodetext()
         self.assertEqual(var, ServerVar('gamemodetext', 'Convoy Trucking DEV', False))
 
-    def test_rcon_set_mapname(self):
-        response = self.client.rcon_set_mapname('Convoy map')
+    async def test_rcon_set_mapname(self):
+        response = await self.client.rcon_set_mapname('Convoy map')
         self.assertIsNone(response)
-        self.client.rcon_set_mapname('San Andreas')
+        await self.client.rcon_set_mapname('San Andreas')
 
-    def test_rcon_get_mapname(self):
-        response = self.client.rcon_get_mapname()
+    async def test_rcon_get_mapname(self):
+        response = await self.client.rcon_get_mapname()
         self.assertEqual(response, ServerVar(name='mapname', value='San Andreas', read_only=False))
 
-    def test_rcon_exec(self):
-        response = self.client.rcon_exec('server')
+    async def test_rcon_exec(self):
+        response = await self.client.rcon_exec('server')
         self.assertEqual(response, ['bind = ""  (string, read-only)', 'password = ""  (string)',
                                     'maxplayers = 10  (int, read-only)', 'port = 7777  (int, read-only)',
                                     'filterscripts = "WeatherStreamer"  (string, read-only)',
@@ -152,12 +152,12 @@ class RconClientTestCase(TestCase):
                                     'incar_rate = 40  (int, read-only)', 'weapon_rate = 40  (int, read-only)',
                                     'logtimeformat = "[%d %b %H:%M:%S]"  (string, read-only)'])
 
-    def test_rcon_exec__invalid(self):
+    async def test_rcon_exec__invalid(self):
         with self.assertRaises(SampError):
-            self.client.rcon_exec('invalid')
+            await self.client.rcon_exec('invalid')
 
-    def test_rcon_kick(self):
-        response = self.client.rcon_kick(0)
+    async def test_rcon_kick(self):
+        response = await self.client.rcon_kick(0)
         self.assertEqual(response, [
             'mick88 <#0 - 172.19.0.1> has been kicked.',
             'Logged time spent online for mick88: 0 min',
@@ -166,12 +166,12 @@ class RconClientTestCase(TestCase):
             '[part] mick88 has left the server (0:2)',
         ])
 
-    def test_rcon_kick__invalidid(self):
-        response = self.client.rcon_kick(999)
+    async def test_rcon_kick__invalidid(self):
+        response = await self.client.rcon_kick(999)
         self.assertEqual(response, [])
 
-    def test_rcon_ban(self):
-        response = self.client.rcon_ban(0)
+    async def test_rcon_ban(self):
+        response = await self.client.rcon_ban(0)
         self.assertEqual(response, [
             'mick88 <#0 - 172.19.0.1> has been banned.',
             'Logged time spent online for mick88: 0 min',
@@ -180,134 +180,138 @@ class RconClientTestCase(TestCase):
             '[part] mick88 has left the server (0:2)',
         ])
 
-    def test_rcon_ban__invalid(self):
-        response = self.client.rcon_ban(999)
+    async def test_rcon_ban__invalid(self):
+        response = await self.client.rcon_ban(999)
         self.assertEqual(response, [])
 
-    def test_rcon_banip(self):
-        response = self.client.rcon_banip('192.168.1.1')
+    async def test_rcon_banip(self):
+        response = await self.client.rcon_banip('192.168.1.1')
         self.assertEqual(response, ['IP 192.168.1.1 has been banned.'])
 
-    def test_rcon_unbanip(self):
-        response = self.client.rcon_unbanip('192.168.1.1')
+    async def test_rcon_unbanip(self):
+        response = await self.client.rcon_unbanip('192.168.1.1')
         self.assertEqual(response, [])
 
-    def test_rcon_changemode(self):
-        response = self.client.rcon_changemode('convoy')
+    async def test_rcon_changemode(self):
+        response = await self.client.rcon_changemode('convoy')
         self.assertEqual(response, [])
 
-    def test_rcon_changemode__invalid(self):
-        response = self.client.rcon_changemode('invalid')
+    async def test_rcon_changemode__invalid(self):
+        response = await self.client.rcon_changemode('invalid')
         self.assertEqual(response, [])
 
-    def test_rcon_gmx(self):
-        response = self.client.rcon_gmx()
+    async def test_rcon_gmx(self):
+        response = await self.client.rcon_gmx()
         self.assertEqual(response, [])
 
-    def test_rcon_reloadbans(self):
-        response = self.client.rcon_reloadbans()
+    async def test_rcon_reloadbans(self):
+        response = await self.client.rcon_reloadbans()
         self.assertEqual(response, [])
 
-    def test_rcon_reloadlog(self):
-        response = self.client.rcon_reloadlog()
+    async def test_rcon_reloadlog(self):
+        response = await self.client.rcon_reloadlog()
         self.assertEqual(response, [])
 
-    def test_rcon_say(self):
-        response = self.client.rcon_say('Hello')
+    async def test_rcon_say(self):
+        response = await self.client.rcon_say('Hello')
         self.assertEqual(response, [])
 
-    def test_rcon_players(self):
-        response = self.client.rcon_players()
+    async def test_rcon_players(self):
+        response = await self.client.rcon_players()
         self.assertEqual(response, [RConPlayer(id=0, name='mick88', ping=15, ip='172.19.0.1')])
 
-    def test_rcon_gravity(self):
-        response = self.client.rcon_gravity(0.008)
+    async def test_rcon_gravity(self):
+        response = await self.client.rcon_gravity(0.008)
         self.assertEqual(response, [])
 
-    def test_rcon_weather(self):
-        response = self.client.rcon_weather(1)
+    async def test_rcon_weather(self):
+        response = await self.client.rcon_weather(1)
         self.assertEqual(response, [])
 
-    def test_rcon_loadfs(self):
-        response = self.client.rcon_loadfs('WeatherStreamer')
+    async def test_rcon_loadfs(self):
+        response = await self.client.rcon_loadfs('WeatherStreamer')
         self.assertEqual(response, "Filterscript 'WeatherStreamer.amx' loaded.")
 
-    def test_rcon_loadfs__invalid(self):
+    async def test_rcon_loadfs__invalid(self):
         with self.assertRaises(SampError):
-            self.client.rcon_loadfs('invalid')
+            await self.client.rcon_loadfs('invalid')
 
-    def test_rcon_unloadfs(self):
-        response = self.client.rcon_unloadfs('WeatherStreamer')
+    async def test_rcon_unloadfs(self):
+        response = await self.client.rcon_unloadfs('WeatherStreamer')
         self.assertEqual(response, "Filterscript 'WeatherStreamer.amx' unloaded.")
 
-    def test_rcon_reloadfs(self):
-        response = self.client.rcon_reloadfs('WeatherStreamer')
+    async def test_rcon_reloadfs(self):
+        response = await self.client.rcon_reloadfs('WeatherStreamer')
         self.assertEqual(response, [
             "Filterscript 'WeatherStreamer.amx' unloaded.",
             "Filterscript 'WeatherStreamer.amx' loaded.",
         ])
 
-    def test_rcon_get_weburl(self):
-        response = self.client.rcon_get_weburl()
+    async def test_rcon_get_weburl(self):
+        response = await self.client.rcon_get_weburl()
         self.assertEqual(response, ServerVar(name='weburl', value='localhost:8000', read_only=False))
 
-    def test_rcon_set_weburl(self):
-        response = self.client.rcon_set_weburl('convoytrucking.net')
+    async def test_rcon_set_weburl(self):
+        response = await self.client.rcon_set_weburl('convoytrucking.net')
         self.assertEqual(response, [])
 
-    def test_rcon_set_rcon_password(self):
-        response = self.client.rcon_set_rcon_password('newpass')
-        self.assertIsNone(response)
+    async def test_rcon_set_rcon_password(self):
+        await self.client.rcon_set_rcon_password('newpass')
         self.assertEqual(self.client.rcon_password, 'newpass')
 
-    def test_rcon_get_rcon_password(self):
-        response = self.client.rcon_get_rcon_password()
+    async def test_rcon_get_rcon_password(self):
+        response = await self.client.rcon_get_rcon_password()
         self.assertEqual(response, ServerVar(name='rcon_password', value='password', read_only=False))
 
-    def test_rcon_get_password(self):
-        response = self.client.rcon_get_password()
+    async def test_rcon_get_password(self):
+        response = await self.client.rcon_get_password()
         self.assertEqual(response, ServerVar(name='password', value='', read_only=False))
 
-    def test_rcon_set_password(self):
-        response = self.client.rcon_set_password('pass')
+    async def test_rcon_set_password(self):
+        response = await self.client.rcon_set_password('pass')
         self.assertEqual(response, 'Setting server password to: "pass"')
 
-    def test_rcon_get_messageslimit(self):
-        response = self.client.rcon_get_messageslimit()
+    async def test_rcon_get_messageslimit(self):
+        response = await self.client.rcon_get_messageslimit()
         self.assertEqual(response, ServerVar(name='messageslimit', value=500, read_only=False))
 
-    def test_rcon_set_messageslimit(self):
-        response = self.client.rcon_set_messageslimit(200)
+    async def test_rcon_set_messageslimit(self):
+        response = await self.client.rcon_set_messageslimit(200)
         self.assertIsNone(response)
 
-    def test_rcon_get_ackslimit(self):
-        response = self.client.rcon_get_ackslimit()
+    async def test_rcon_get_ackslimit(self):
+        response = await self.client.rcon_get_ackslimit()
         self.assertEqual(response, ServerVar(name='ackslimit', value=3000, read_only=False))
 
-    def test_rcon_set_ackslimit(self):
-        response = self.client.rcon_set_ackslimit(1000)
+    async def test_rcon_set_ackslimit(self):
+        response = await self.client.rcon_set_ackslimit(1000)
         self.assertIsNone(response)
 
-    def test_rcon_get_messageholelimit(self):
-        response = self.client.rcon_get_messageholelimit()
+    async def test_rcon_get_messageholelimit(self):
+        response = await self.client.rcon_get_messageholelimit()
         self.assertEqual(response, ServerVar(name='messageholelimit', value=3000, read_only=False))
 
-    def test_rcon_set_messageholelimit(self):
-        response = self.client.rcon_set_messageholelimit(1000)
+    async def test_rcon_set_messageholelimit(self):
+        response = await self.client.rcon_set_messageholelimit(1000)
         self.assertIsNone(response)
 
-    def test_rcon_get_playertimeout(self):
-        response = self.client.rcon_get_playertimeout()
+    async def test_rcon_get_playertimeout(self):
+        response = await self.client.rcon_get_playertimeout()
         self.assertEqual(response, ServerVar(name='playertimeout', value=10000, read_only=False))
 
-    def test_rcon_set_playertimeout(self):
-        response = self.client.rcon_set_playertimeout(1000)
+    async def test_rcon_set_playertimeout(self):
+        response = await self.client.rcon_set_playertimeout(1000)
         self.assertIsNone(response)
 
-    def test_rcon_get_language(self):
-        response = self.client.rcon_get_language()
+    async def test_rcon_get_language(self):
+        response = await self.client.rcon_get_language()
         self.assertEqual(response, ServerVar(name='language', value='English', read_only=False))
 
-    def test_rcon_set_language(self):
-        response = self.client.rcon_set_language('Polish')
+    async def test_rcon_set_language(self):
+        response = await self.client.rcon_set_language('Polish')
         self.assertIsNone(response)
+
+
+if __name__ == "__main__":
+    import unittest
+    unittest.main()

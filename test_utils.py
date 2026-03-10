@@ -1,7 +1,7 @@
 # coding=utf-8
 from unittest.case import TestCase
-from samp_py import utils
-from samp_py.constants import ENCODING
+from src import utils
+from src.constants import ENCODING
 
 
 class UtilsTestCase(TestCase):
@@ -119,3 +119,7 @@ class UtilsTestCase(TestCase):
         self.assertEqual('bind', var.name)
         self.assertEqual('127.0.0.1', var.value)
         self.assertIsInstance(var.value, str)
+
+if __name__ == "__main__":
+    import unittest
+    unittest.main()

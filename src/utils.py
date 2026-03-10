@@ -1,7 +1,7 @@
 import re
 
-from samp_py.constants import ENCODING
-from samp_py.models import ServerVar
+from .constants import ENCODING
+from .models import ServerVar
 
 VAR_PATTERN = re.compile(r'\s*'.join((
     r'(?P<name>\w+)',
